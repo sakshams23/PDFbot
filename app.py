@@ -69,7 +69,7 @@ def main():
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
                     # Backend logic should process the response
-                    
+                    response = "Mock response based on the PDF content."
                     st.write(response)
 
             # Save response in chat history
