@@ -1,104 +1,83 @@
-import streamlit as st
-from dotenv import load_dotenv
+import os
 from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationalRetrievalChain
-from htmlTemplates import css, bot_template, user_template
-from langchain.llms import HuggingFaceHub
-
-def get_pdf_text(pdf_docs):
-    text = ""
-    for pdf in pdf_docs:
-        pdf_reader = PdfReader(pdf)
-        for page in pdf_reader.pages:
-            text += page.extract_text()
-    return text
-
-
-def get_text_chunks(text):
-    text_splitter = CharacterTextSplitter(
-        separator="\n",
-        chunk_size=1000,
-        chunk_overlap=200,
-        length_function=len
-    )
-    chunks = text_splitter.split_text(text)
-    return chunks
-
-
-def get_vectorstore(text_chunks):
-    embeddings = OpenAIEmbeddings()
-    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
-    vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
-    return vectorstore
-
-
-def get_conversation_chain(vectorstore):
-    llm = ChatOpenAI()
-    # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
-
-    memory = ConversationBufferMemory(
-        memory_key='chat_history', return_messages=True)
-    conversation_chain = ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=vectorstore.as_retriever(),
-        memory=memory
-    )
-    return conversation_chain
-
-
-def handle_userinput(user_question):
-    response = st.session_state.conversation({'question': user_question})
-    st.session_state.chat_history = response['chat_history']
-
-    for i, message in enumerate(st.session_state.chat_history):
-        if i % 2 == 0:
-            st.write(user_template.replace(
-                "{{MSG}}", message.content), unsafe_allow_html=True)
-        else:
-            st.write(bot_template.replace(
-                "{{MSG}}", message.content), unsafe_allow_html=True)
-
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import streamlit as st
+import google.generativeai as genai
+from langchain_community.vectorstores.faiss import FAISS
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.chains.question_answering import load_qa_chain
+from langchain.prompts import PromptTemplate
+from dotenv import load_dotenv
+import streamlit as st
+from PIL import Image
 
 def main():
-    load_dotenv()
-    st.set_page_config(page_title="Chat with multiple PDFs",
-                       page_icon=":books:")
-    st.write(css, unsafe_allow_html=True)
+    st.set_page_config(
+        page_title="PDFbot",
+        page_icon="",
+        layout="wide",  # full-screen layout
+        initial_sidebar_state="expanded"
+    )
 
-    if "conversation" not in st.session_state:
-        st.session_state.conversation = None
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = None
-
-    st.header("Chat with multiple PDFs :books:")
-    user_question = st.text_input("Ask a question about your documents:")
-    if user_question:
-        handle_userinput(user_question)
-
+    # Sidebar for uploading PDF files
     with st.sidebar:
-        st.subheader("Your documents")
+        st.title("Upload PDF Files")
+        st.info("You can upload multiple PDF files to chat with.")
         pdf_docs = st.file_uploader(
-            "Upload your PDFs here and click on 'Process'", accept_multiple_files=True)
-        if st.button("Process"):
-            with st.spinner("Processing"):
-                # get pdf text
-                raw_text = get_pdf_text(pdf_docs)
+            "Upload your PDF Files", 
+            accept_multiple_files=True,
+            type=["pdf"]
+        )
+        
+        if st.button("Submit"):
+            with st.spinner("Processing PDFs..."):
+                if pdf_docs:
+                    # Backend logic should be called here to process PDFs
+                    st.success("PDFs processed successfully!")
+                else:
+                    st.error("Please upload PDF files first.")
 
-                # get the text chunks
-                text_chunks = get_text_chunks(raw_text)
+    # Main content area for displaying chat messages
+    st.title("Chat with PDF Files")
+    st.write("Welcome! Upload your PDF files and ask questions based on the document contents.")
 
-                # create vector store
-                vectorstore = get_vectorstore(text_chunks)
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Upload some PDFs and ask me a question!"}
+        ]
 
-                # create conversation chain
-                st.session_state.conversation = get_conversation_chain(
-                    vectorstore)
+    # Display chat messages with custom styling
+    for message in st.session_state.messages:
+        if message["role"] == "user":
+            st.markdown(f"<div style='text-align: right; color: #ffffff;'>{message['content']}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div style='text-align: left; color: #ffffff;'>{message['content']}</div>", unsafe_allow_html=True)
 
+    # Input chat prompt
+    user_prompt = st.chat_input("Ask a question about the uploaded PDFs")
 
-if __name__ == '__main__':
+    if user_prompt:
+        # Append user message
+        st.session_state.messages.append({"role": "user", "content": user_prompt})
+        # Display user input immediately
+        with st.chat_message("user"):
+            st.write(user_prompt)
+
+        # Process the response
+        if st.session_state.messages[-1]["role"] != "assistant":
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    # Backend logic should process the response
+                    
+                    st.write(response)
+
+            # Save response in chat history
+            if response:
+                st.session_state.messages.append({"role": "assistant", "content": response})
+
+    # Sidebar Button: Clear Chat History
+    st.sidebar.button("Clear Chat History", on_click=lambda: st.session_state.clear())
+
+if __name__ == "__main__":
     main()
