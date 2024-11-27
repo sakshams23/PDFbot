@@ -2,32 +2,21 @@ import os
 from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import streamlit as st
+import google.generativeai as genai
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
-import streamlit as st
 from dotenv import load_dotenv
-
-def extract_text_from_pdfs(pdf_docs):
-    text = ""
-    for pdf_file in pdf_docs:
-        reader = PdfReader(pdf_file)
-        for page in reader.pages:
-            text += page.extract_text()
-    return text
-
-def create_faiss_index(text):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    docs = text_splitter.split_text(text)
-    embeddings = GoogleGenerativeAIEmbeddings()
-    return FAISS.from_texts(docs, embeddings)
+import streamlit as st
+from PIL import Image
 
 def main():
     st.set_page_config(
         page_title="PDFbot",
-        page_icon="🤖",
-        layout="wide",
+        page_icon="",
+        layout="wide",  # full-screen layout
         initial_sidebar_state="expanded"
     )
 
@@ -36,16 +25,15 @@ def main():
         st.title("Upload PDF Files")
         st.info("You can upload multiple PDF files to chat with.")
         pdf_docs = st.file_uploader(
-            "Upload your PDF Files",
+            "Upload your PDF Files", 
             accept_multiple_files=True,
             type=["pdf"]
         )
-
+        
         if st.button("Submit"):
             with st.spinner("Processing PDFs..."):
                 if pdf_docs:
-                    text = extract_text_from_pdfs(pdf_docs)
-                    st.session_state.faiss_index = create_faiss_index(text)
+                    # Backend logic should be called here to process PDFs
                     st.success("PDFs processed successfully!")
                 else:
                     st.error("Please upload PDF files first.")
@@ -59,28 +47,36 @@ def main():
             {"role": "assistant", "content": "Upload some PDFs and ask me a question!"}
         ]
 
+    # Display chat messages with custom styling
     for message in st.session_state.messages:
         if message["role"] == "user":
-            st.markdown(f"<div style='text-align: right;'>{message['content']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align: right; color: #ffffff;'>{message['content']}</div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"<div style='text-align: left;'>{message['content']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align: left; color: #ffffff;'>{message['content']}</div>", unsafe_allow_html=True)
 
+    # Input chat prompt
     user_prompt = st.chat_input("Ask a question about the uploaded PDFs")
 
     if user_prompt:
+        # Append user message
         st.session_state.messages.append({"role": "user", "content": user_prompt})
+        # Display user input immediately
+        with st.chat_message("user"):
+            st.write(user_prompt)
 
-        if "faiss_index" in st.session_state:
-            with st.spinner("Thinking..."):
-                retriever = st.session_state.faiss_index.as_retriever()
-                chain = load_qa_chain(ChatGoogleGenerativeAI(), chain_type="stuff")
-                response = chain.run(input_documents=retriever.get_relevant_documents(user_prompt), question=user_prompt)
-        else:
-            response = "Please upload and process PDFs first."
+        # Process the response
+        if st.session_state.messages[-1]["role"] != "assistant":
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    # Backend logic should process the response
+                    response = "Mock response based on the PDF content."
+                    st.write(response)
 
-        st.session_state.messages.append({"role": "assistant", "content": response})
-        st.write(response)
+            # Save response in chat history
+            if response:
+                st.session_state.messages.append({"role": "assistant", "content": response})
 
+    # Sidebar Button: Clear Chat History
     st.sidebar.button("Clear Chat History", on_click=lambda: st.session_state.clear())
 
 if __name__ == "__main__":
