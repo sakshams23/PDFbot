@@ -100,10 +100,9 @@ def get_response(user_question):
 # Main function
 def main():
     st.title("PdfOcrBot")
-    st.write("Welcome to PdfOcrBot! I can process multiple PDF and image files for you. Upload your files, and I'll extract the text. You can then ask me questions about the files' content.")
+    st.write("Welcome to PdfBot! I can process multiple PDFs and I'll extract the text. You can then ask me questions about the PDF's content.")
 
-    uploaded_files = st.file_uploader("Upload your PDF or Image files", type=["pdf", "png", "jpg", "jpeg", "webp"], accept_multiple_files=True)
-    ocr = st.checkbox("Enable OCR for PDF files")
+    uploaded_files = st.file_uploader("Upload your PDF files", type=["pdf"], accept_multiple_files=True)
 
     if st.button("Clear Conversation"):
         st.session_state['messages'].clear()
