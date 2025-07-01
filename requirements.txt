@@ -7,4 +7,9 @@ google-generativeai
 langchain
 langchain-community
 langchain-google-genai
+langchain-text-splitters
+transformers
+torch
+sentence-transformers
 faiss-cpu
+
